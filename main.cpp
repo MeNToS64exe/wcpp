@@ -80,34 +80,45 @@ constexpr std::array<
                      {"words", 'w', Mode::WORDS, &FileAnalyzer::count_words},
                      {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes}}};
 
-constexpr size_t METHOD = 3;
+constexpr auto get_method(const auto &entry) { return std::get<3>(entry); };
+
 using FileStats =
     std::pair<std::array<size_t, command_list.size()>, std::string>;
 
 template <size_t N>
 void set_word_command(std::string_view command, std::bitset<N> &set_commands) {
     std::string_view command_name = command.substr(2, command.size() - 2);
-
+    bool found = 0;
     for (auto &&[name, character, mode, method] : command_list) {
-        if (command_name == name)
+        if (command_name == name) {
             set_commands[static_cast<size_t>(mode)] = 1;
+            found = 1;
+        }
     }
+    if (!found)
+        throw std::runtime_error{"'" + std::string(command.data()) +
+                                 "': invalid command"};
 }
 
 template <size_t N>
 void set_char_command(std::string_view command, std::bitset<N> &set_commands) {
     std::string_view command_characters = command.substr(1, command.size() - 1);
     for (char command_character : command_characters) {
+        bool found = 0;
         for (auto &&[name, character, mode, method] : command_list) {
-            if (command_character == character)
+            if (command_character == character) {
                 set_commands[static_cast<size_t>(mode)] = 1;
+                found = 1;
+            }
         }
+        if (!found)
+            throw std::runtime_error{"'-" + std::string(1, command_character) +
+                                     "': invalid command"};
     }
 }
 
-void set_argument(std::string_view command,
-                  std::vector<FileAnalyzer> &files) {
-    files.push_back(FileAnalyzer{command.data()});
+void set_argument(std::string_view command, std::vector<FileAnalyzer> &files) {
+    files.emplace_back(command.data());
 }
 
 template <size_t N>
@@ -139,15 +150,36 @@ void print_result(std::ostream &os, const std::vector<FileStats> &result,
         os << std::setw(max_setw) << file_stats.second << '\n';
     }
 
-    for (size_t i = 0; i < command_list.size(); ++i) {
-        if (preset[i])
-            os << std::setw(max_setw) << total.first[i] << " ";
+    if (result.size() > 1) {
+        for (size_t i = 0; i < command_list.size(); ++i)
+            if (preset[i])
+                os << std::setw(max_setw) << total.first[i] << " ";
+
+        os << std::setw(max_setw) << "total" << '\n';
     }
-    os << std::setw(max_setw) << "total" << '\n';
 }
 
 void print_help() {
-    std::cout << "help tipa\n";
+    std::cout << R"(Usage: wcpp [OPTION]... [FILE]...
+
+Print newline, word, and byte counts for each FILE.
+
+Options:
+  -l, --lines        print the number of lines
+  -w, --words        print the number of words
+  -c, --bytes        print the number of bytes
+  --help             display this help and exit
+
+Examples:
+  wcpp file.txt          print lines, words, and bytes for file.txt
+  wcpp -l -w file.txt    print lines and words only
+  wcpp --bytes file.txt  print only byte count
+)";
+}
+
+void print_version() {
+    std::cout << R"(wcpp version 1.0
+    )";
 }
 
 int main(int argc, char **argv) try {
@@ -162,8 +194,10 @@ int main(int argc, char **argv) try {
         if (command == "--help") {
             print_help();
             return EXIT_SUCCESS;
-        }
-        else if (command.starts_with("--"))
+        } else if (command == "--version") {
+            print_version();
+            return EXIT_SUCCESS;
+        } else if (command.starts_with("--"))
             set_word_command(command, preset);
         else if (command.starts_with("-"))
             set_char_command(command, preset);
@@ -180,8 +214,7 @@ int main(int argc, char **argv) try {
         FileAnalyzer *ptr = &(*it);
         for (size_t i = 0; i < command_list.size(); ++i)
             if (preset[i])
-                file_stats.first[i] =
-                    (ptr->*std::get<METHOD>(command_list[i]))();
+                file_stats.first[i] = (ptr->*get_method(command_list[i]))();
         file_stats.second = it->get_file_name();
         result.push_back(std::move(file_stats));
     }
