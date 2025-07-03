@@ -3,7 +3,7 @@
 **wcpp** is a compact, fast C++ implementation of the classic Unix `wc` (word count) utility.
 It prints line, word, and byte counts for each file, similar to GNU `wc`, but written from scratch using C++20.
 
-## Usage
+## Features
 
 - Flags:
     - `-l`, `--lines` — count lines
