@@ -169,11 +169,7 @@ Options:
   -w, --words        print the number of words
   -c, --bytes        print the number of bytes
   --help             display this help and exit
-
-Examples:
-  wcpp file.txt          print lines, words, and bytes for file.txt
-  wcpp -l -w file.txt    print lines and words only
-  wcpp --bytes file.txt  print only byte count
+  --version          output version information and exit
 )";
 }
 
