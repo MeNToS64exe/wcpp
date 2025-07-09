@@ -115,7 +115,7 @@ enum class Mode { LINES, WORDS, CHARS, BYTES, LINE_LENGTH };
 
 constexpr std::array<
     std::tuple<std::string_view, char, Mode, FileAnalyzerMethod>, 5>
-    command_list = {{{"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
+    options_list = {{{"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
                      {"words", 'w', Mode::WORDS, &FileAnalyzer::count_words},
                      {"chars", 'm', Mode::CHARS, &FileAnalyzer::count_chars},
                      {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes},
@@ -126,53 +126,53 @@ constexpr uint8_t default_options = 0b00001011;
 constexpr auto get_method(const auto &entry) { return std::get<3>(entry); };
 
 using FileStats =
-    std::pair<std::array<size_t, command_list.size()>, std::string>;
+    std::pair<std::array<size_t, options_list.size()>, std::string>;
 
 template <size_t N>
-void set_word_command(std::string_view command, std::bitset<N> &set_commands) {
-    std::string_view command_name = command.substr(2, command.size() - 2);
+void set_word_command(std::string_view option, std::bitset<N> &selected_options) {
+    std::string_view option_name = option.substr(2, option.size() - 2);
     bool found = 0;
-    for (auto &&[name, character, mode, method] : command_list) {
-        if (command_name == name) {
-            set_commands[static_cast<size_t>(mode)] = 1;
+    for (auto &&[name, character, mode, method] : options_list) {
+        if (option_name == name) {
+            selected_options[static_cast<size_t>(mode)] = 1;
             found = 1;
         }
     }
     if (!found)
-        throw std::runtime_error{"'" + std::string(command.data()) +
+        throw std::runtime_error{"'" + std::string(option.data()) +
                                  "': invalid command"};
 }
 
 template <size_t N>
-void set_char_command(std::string_view command, std::bitset<N> &set_commands) {
-    std::string_view command_characters = command.substr(1, command.size() - 1);
-    for (char command_character : command_characters) {
+void set_char_command(std::string_view option, std::bitset<N> &selected_options) {
+    std::string_view option_characters = option.substr(1, option.size() - 1);
+    for (char option_character : option_characters) {
         bool found = 0;
-        for (auto &&[name, character, mode, method] : command_list) {
-            if (command_character == character) {
-                set_commands[static_cast<size_t>(mode)] = 1;
+        for (auto &&[name, character, mode, method] : options_list) {
+            if (option_character == character) {
+                selected_options[static_cast<size_t>(mode)] = 1;
                 found = 1;
             }
         }
         if (!found)
-            throw std::runtime_error{"'-" + std::string(1, command_character) +
+            throw std::runtime_error{"'-" + std::string(1, option_character) +
                                      "': invalid command"};
     }
 }
 
-void set_argument(std::string_view command, std::vector<FileAnalyzer> &files) {
-    files.emplace_back(command.data());
+void set_argument(std::string_view option, std::vector<FileAnalyzer> &files) {
+    files.emplace_back(option.data());
 }
 
 template <size_t N>
 void print_result(std::ostream &os, const std::vector<FileStats> &result,
-                  std::bitset<N> &preset) {
+                  std::bitset<N> &selected_options) {
 
     FileStats total;
     size_t max_setw = 1;
     for (auto &&file_stats : result) {
-        for (size_t i = 0; i < command_list.size(); ++i) {
-            if (preset[i]) {
+        for (size_t i = 0; i < options_list.size(); ++i) {
+            if (selected_options[i]) {
                 if (i == static_cast<size_t>(Mode::LINE_LENGTH))
                     total.first[i] = std::max(total.first[i], file_stats.first[i]);
                 else
@@ -186,8 +186,8 @@ void print_result(std::ostream &os, const std::vector<FileStats> &result,
         }
     }
 
-    for (size_t i = 0; i < command_list.size(); ++i) {
-        if (preset[i]) {
+    for (size_t i = 0; i < options_list.size(); ++i) {
+        if (selected_options[i]) {
             size_t digit_count =
                 total.first[i] ? std::ceil(std::log10(total.first[i])) : 1;
             max_setw = std::max(max_setw, digit_count);
@@ -196,16 +196,16 @@ void print_result(std::ostream &os, const std::vector<FileStats> &result,
 
     os << std::right;
     for (auto &&file_stats : result) {
-        for (size_t i = 0; i < command_list.size(); ++i) {
-            if (preset[i])
+        for (size_t i = 0; i < options_list.size(); ++i) {
+            if (selected_options[i])
                 os << std::setw(max_setw) << file_stats.first[i] << " ";
         }
         os << std::setw(max_setw) << file_stats.second << '\n';
     }
 
     if (result.size() > 1) {
-        for (size_t i = 0; i < command_list.size(); ++i)
-            if (preset[i])
+        for (size_t i = 0; i < options_list.size(); ++i)
+            if (selected_options[i])
                 os << std::setw(max_setw) << total.first[i] << " ";
 
         os << std::setw(max_setw) << "total" << '\n';
@@ -233,43 +233,43 @@ void print_version() {
 }
 
 int main(int argc, char **argv) try {
-    std::vector<std::string_view> commands(argv + 1, argv + argc);
+    std::vector<std::string_view> options(argv + 1, argv + argc);
     std::vector<std::string_view> file_names;
-    std::bitset<command_list.size()> preset;
+    std::bitset<options_list.size()> selected_options;
 
     std::vector<FileAnalyzer> files;
     std::vector<FileStats> result;
 
-    for (auto &&command : commands) {
-        if (command == "--help") {
+    for (auto &&option : options) {
+        if (option == "--help") {
             print_help();
             return EXIT_SUCCESS;
-        } else if (command == "--version") {
+        } else if (option == "--version") {
             print_version();
             return EXIT_SUCCESS;
-        } else if (command.starts_with("--"))
-            set_word_command(command, preset);
-        else if (command.starts_with("-"))
-            set_char_command(command, preset);
+        } else if (option.starts_with("--"))
+            set_word_command(option, selected_options);
+        else if (option.starts_with("-"))
+            set_char_command(option, selected_options);
         else
-            file_names.emplace_back(command);
+            file_names.emplace_back(option);
     }
-    if (preset.none())
-        preset = default_options;
+    if (selected_options.none())
+        selected_options = default_options;
 
-    for (auto &&name : file_names)
-        set_argument(name, files);
+    for (auto &&file_name : file_names)
+        set_argument(file_name, files);
 
     for (auto it = files.begin(), ite = files.end(); it != ite; ++it) {
         FileStats file_stats;
         FileAnalyzer *ptr = &(*it);
-        for (size_t i = 0; i < command_list.size(); ++i)
-            if (preset[i])
-                file_stats.first[i] = (ptr->*get_method(command_list[i]))();
+        for (size_t i = 0; i < options_list.size(); ++i)
+            if (selected_options[i])
+                file_stats.first[i] = (ptr->*get_method(options_list[i]))();
         file_stats.second = it->get_file_name();
         result.push_back(std::move(file_stats));
     }
-    print_result(std::cout, result, preset);
+    print_result(std::cout, result, selected_options);
     return EXIT_SUCCESS;
 } catch (std::exception &e) {
     std::cerr << "error: " << e.what() << std::endl;
