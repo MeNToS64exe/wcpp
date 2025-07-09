@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <cstdint>
 
 class FileAnalyzer {
     std::ifstream file_;
@@ -120,6 +121,7 @@ constexpr std::array<
                      {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes},
                      {"max-line-length", 'L', Mode::LINE_LENGTH,
                       &FileAnalyzer::max_line_length}}};
+constexpr uint8_t default_options = 0b00001011;
 
 constexpr auto get_method(const auto &entry) { return std::get<3>(entry); };
 
@@ -253,7 +255,8 @@ int main(int argc, char **argv) try {
             file_names.emplace_back(command);
     }
     if (preset.none())
-        preset.set();
+        preset = default_options;
+
     for (auto &&name : file_names)
         set_argument(name, files);
 
