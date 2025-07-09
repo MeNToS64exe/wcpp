@@ -112,16 +112,16 @@ size_t FileAnalyzer::max_line_length() {
 
 using FileAnalyzerMethod = size_t (FileAnalyzer::*)();
 
-enum class Mode { LINE_LENGTH, LINES, WORDS, CHARS, BYTES };
+enum class Mode { LINES, WORDS, CHARS, BYTES, LINE_LENGTH };
 
 constexpr std::array<
     std::tuple<std::string_view, char, Mode, FileAnalyzerMethod>, 5>
-    command_list = {{{"max-line-length", 'L', Mode::LINE_LENGTH,
-                      &FileAnalyzer::max_line_length},
-                     {"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
+    command_list = {{{"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
                      {"words", 'w', Mode::WORDS, &FileAnalyzer::count_words},
                      {"chars", 'm', Mode::CHARS, &FileAnalyzer::count_chars},
-                     {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes}}};
+                     {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes},
+                     {"max-line-length", 'L', Mode::LINE_LENGTH,
+                      &FileAnalyzer::max_line_length}}};
 
 constexpr auto get_method(const auto &entry) { return std::get<3>(entry); };
 
@@ -168,10 +168,15 @@ template <size_t N>
 void print_result(std::ostream &os, const std::vector<FileStats> &result,
                   std::bitset<N> &preset) {
 
+    FileStats total;
     size_t max_setw = 1;
     for (auto &&file_stats : result) {
         for (size_t i = 0; i < command_list.size(); ++i) {
             if (preset[i]) {
+                if (i == static_cast<size_t>(Mode::LINE_LENGTH))
+                    total.first[i] = std::max(total.first[i], file_stats.first[i]);
+                else
+                    total.first[i] += file_stats.first[i];
                 size_t digit_count =
                     file_stats.first[i]
                         ? std::ceil(std::log10(file_stats.first[i]))
@@ -180,15 +185,20 @@ void print_result(std::ostream &os, const std::vector<FileStats> &result,
             }
         }
     }
-    FileStats total;
+
+    for (size_t i = 0; i < command_list.size(); ++i) {
+        if (preset[i]) {
+            size_t digit_count =
+                total.first[i] ? std::ceil(std::log10(total.first[i])) : 1;
+            max_setw = std::max(max_setw, digit_count);
+        }
+    }
 
     os << std::right;
     for (auto &&file_stats : result) {
         for (size_t i = 0; i < command_list.size(); ++i) {
-            if (preset[i]) {
+            if (preset[i])
                 os << std::setw(max_setw) << file_stats.first[i] << " ";
-                total.first[i] += file_stats.first[i];
-            }
         }
         os << std::setw(max_setw) << file_stats.second << '\n';
     }
