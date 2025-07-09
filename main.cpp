@@ -1,12 +1,14 @@
 #include <array>
 #include <bitset>
 #include <cmath>
+#include <codecvt>
 #include <cstdlib>
 #include <exception>
 #include <fstream>
 #include <iomanip>
 #include <iosfwd>
 #include <iostream>
+#include <locale>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -26,9 +28,18 @@ public:
 
     const std::string &get_file_name() const & { return file_name_; }
     size_t count_bytes();
-    size_t count_words();
+    size_t count_chars();
     size_t count_lines();
+    size_t count_words();
+    size_t max_line_length();
 };
+
+size_t utf8_length(const char *str) {
+    size_t len{};
+    while (*str)
+        len += (*(str++) & 0xc0) != 0x80;
+    return len;
+}
 
 size_t FileAnalyzer::count_bytes() {
     file_.clear();
@@ -40,6 +51,20 @@ size_t FileAnalyzer::count_bytes() {
     file_.clear();
     file_.seekg(start_pos);
     return static_cast<size_t>(end_pos);
+}
+
+size_t FileAnalyzer::count_chars() {
+    file_.clear();
+    std::streampos start_pos = file_.tellg();
+
+    size_t chars{};
+    char byte;
+    while (file_.get(byte))
+        chars += (byte & 0xC0) != 0x80;
+
+    file_.clear();
+    file_.seekg(start_pos);
+    return chars;
 }
 
 size_t FileAnalyzer::count_words() {
@@ -70,14 +95,32 @@ size_t FileAnalyzer::count_lines() {
     return lines;
 }
 
+size_t FileAnalyzer::max_line_length() {
+    file_.clear();
+    file_.seekg(0);
+    std::streampos start_pos = file_.tellg();
+
+    size_t max_length{};
+    std::string line;
+    while (std::getline(file_, line))
+        max_length = std::max(max_length, utf8_length(line.data()));
+
+    file_.clear();
+    file_.seekg(start_pos);
+    return max_length;
+}
+
 using FileAnalyzerMethod = size_t (FileAnalyzer::*)();
 
-enum class Mode { LINES, WORDS, BYTES };
+enum class Mode { LINE_LENGTH, LINES, WORDS, CHARS, BYTES };
 
 constexpr std::array<
-    std::tuple<std::string_view, char, Mode, FileAnalyzerMethod>, 3>
-    command_list = {{{"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
+    std::tuple<std::string_view, char, Mode, FileAnalyzerMethod>, 5>
+    command_list = {{{"max-line-length", 'L', Mode::LINE_LENGTH,
+                      &FileAnalyzer::max_line_length},
+                     {"lines", 'l', Mode::LINES, &FileAnalyzer::count_lines},
                      {"words", 'w', Mode::WORDS, &FileAnalyzer::count_words},
+                     {"chars", 'm', Mode::CHARS, &FileAnalyzer::count_chars},
                      {"bytes", 'c', Mode::BYTES, &FileAnalyzer::count_bytes}}};
 
 constexpr auto get_method(const auto &entry) { return std::get<3>(entry); };
