@@ -9,6 +9,8 @@ It prints line, word, and byte counts for each file, similar to GNU `wc`, but wr
     - `-l`, `--lines` — count lines
     - `-w`, `--words` — count words
     - `-c`, `--bytes` — count bytes
+    - `-m`, `--chars` — count UTF-8 characters
+    - `-L`, `--max-line-length` — count length of the longest line
 - Totals for multiple files
 - Formatted, aligned output like GNU `wc`
 
@@ -32,7 +34,7 @@ If no option is specified, all three counts will be shown.
 ## TODO
 
 - No `--files0-from=F` and support for stdin (`-`) yet
-- No `--chars`, `--max-line-length`, or `--total` mode
+- No `--total` mode
 
 ## License
 
