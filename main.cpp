@@ -1,14 +1,12 @@
 #include <array>
 #include <bitset>
 #include <cmath>
-#include <codecvt>
 #include <cstdlib>
 #include <exception>
 #include <fstream>
 #include <iomanip>
 #include <iosfwd>
 #include <iostream>
-#include <locale>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -218,17 +216,18 @@ void print_help() {
 Print newline, word, and byte counts for each FILE.
 
 Options:
-  -l, --lines        print the number of lines
-  -w, --words        print the number of words
-  -c, --bytes        print the number of bytes
-  --help             display this help and exit
-  --version          output version information and exit
+  -c, --bytes             print the number of bytes
+  -m, --chars             print the number of characters (UTF-8 aware)
+  -l, --lines             print the number of lines
+  -w, --words             print the number of words
+  -L, --max-line-length   print the length of the longest line
+      --help              display this help and exit
+      --version           output version information and exit
 )";
 }
 
 void print_version() {
-    std::cout << R"(wcpp version 1.0
-    )";
+    std::cout << "wcpp version 1.1\n";
 }
 
 int main(int argc, char **argv) try {
